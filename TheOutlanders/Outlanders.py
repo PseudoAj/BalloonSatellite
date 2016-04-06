@@ -8,13 +8,15 @@ Calling the methods as and when needed and truely test.
 import time
 import csv
 import grovepi
-from gps import *
 import os
+import otlndrGPSClient
+import sys
 
 
 #Define the class
 class Outlanders:
      
+     #Initializer
      def __init__(self):
         """
         Define the sensors on the machine and the variables
@@ -30,7 +32,12 @@ class Outlanders:
         #Sensor3: Gyro sensor
         self.gyroSensor=3
         grovepi.pinMode(self.gyroSensor,"INPUT")
+
+        #GPS Session
+        otlndrGPSClient.gpsp = otlndrGPSClient.GpsPoller()
         
+
+    #Code for the calibration of gyro sensor
      def gyroCalibrate(self):
         print "calibrating..."
         sum = 0
@@ -53,6 +60,8 @@ class Outlanders:
         print "finished calibrating"
         print "reference_value =", self.reference_value
         
+
+    #Read from the airquality sensor    
      def readAirQualitySensorData(self,sensorID):
         if sensorID==1:
             self.airQualitySensorValue=grovepi.analogRead(self.airQualitySensor1)
@@ -60,19 +69,38 @@ class Outlanders:
             self.airQualitySensorValue=grovepi.analogRead(self.airQualitySensor2)
         return self.airQualitySensorValue
 
+
+    #Read from the Gyro sensor
      def readGyroSensorData(self):
-          self.gyroSensorValue=grovepi.analogRead(self.gyroSensor)
-          return self.gyroSensorValue
-        
+        self.gyroSensorValue=grovepi.analogRead(self.gyroSensor)
+        return self.gyroSensorValue
+
+    #Module to write to file
+     def csvWriteRow(self,row):
+          f = open("outlndrsData.csv", 'wt')
+          try:
+               writer = csv.writer(f)
+               writer.writerow(row)
+          finally:
+               f.close()
 
 #create the class object as mission
 mission=Outlanders()
 
+#Time function
+current_milli_time = lambda: int(round(time.time() * 1000))
+
 #Calibrate Sensor
 mission.gyroCalibrate()
 
+#Start GPS Thread
+otlndrGPSClient.gpsp.start()
+
 #Do forever
 while True:
+    #Clear everything before starting up
+    os.system('clear')
+
     #Task1: Read sensor values
     try:
         #clear the system variables
@@ -89,15 +117,35 @@ while True:
         gyroVelValue=((float)(gyroValue - mission.reference_value) * 4930.0) / 1023.0 / 0.67
         
         #read gps
+        latValue = otlndrGPSClient.gpsd.fix.latitude
+        lonValue = otlndrGPSClient.gpsd.fix.longitude
+        gpsTime  = otlndrGPSClient.gpsd.utc,' + ', otlndrGPSClient.gpsd.fix.time
+        altValue = otlndrGPSClient.gpsd.fix.altitude
+        epsValue = otlndrGPSClient.gpsd.fix.eps
+        epxValue = otlndrGPSClient.gpsd.fix.epx
+        epvValue = otlndrGPSClient.gpsd.fix.epv
+        eptValue = otlndrGPSClient.gpsd.fix.ept 
+        spdValue = otlndrGPSClient.gpsd.fix.speed
+        clbValue = otlndrGPSClient.gpsd.fix.climb
+        trkValue = otlndrGPSClient.gpsd.fix.track
+        mdeValue = otlndrGPSClient.gpsd.fix.mode
+
+
+        #Read time
+        timeValue=current_milli_time()
 
         #make the string
-        dataString=str(tempVal1)+","+str(tempVal2)+","+str(gyroValue)+","+str(gyroVelValue)
+        dataString=str(tempVal1)+","+str(tempVal2)+","+str(gyroValue)+","+str(gyroVelValue)+","+str(timeValue)+","+str(latValue)+","+str(lonValue)+","+str(gpsTime)+","+str(altValue)+","+str(epsValue)+","+str(epxValue)+","+str(epvValue)+","+str(eptValue)+","+str(spdValue)+","+str(clbValue)+","+str(trkValue)+","+str(mdeValue)
 
         #write to the csv file
-        print dataString
-        
+        mission.csvWriteRow(dataString)
+
+        #Timer for making the thread sleep
         time.sleep(5)
+    
     except IOError as thisException:
         print str(thisException)
-    
-    #Task2: write the sensor values
+
+    except (KeyboardInterrupt, SystemExit): 
+        otlndrGPSClient.gpsp.running = False
+        otlndrGPSClient.gpsp.join()
