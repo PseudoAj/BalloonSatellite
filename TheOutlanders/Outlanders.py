@@ -6,7 +6,6 @@ Calling the methods as and when needed and truely test.
 
 #Importing dependencies
 import time
-import csv
 import grovepi
 import os
 import otlndrGPSClient
@@ -77,13 +76,12 @@ class Outlanders:
 
     #Module to write to file
      def csvWriteRow(self,row):
-          f = open("outlndrsData.csv", 'wt')
           try:
-               writer = csv.writer(f)
-               writer.writerow(row)
-          finally:
-               f.close()
-
+               with open("outlndrsData.txt", "ab") as f:
+                    f.write(row)
+          except:
+               print "Write Error"
+          
 #create the class object as mission
 mission=Outlanders()
 
@@ -135,13 +133,13 @@ while True:
         timeValue=current_milli_time()
 
         #make the string
-        dataString=str(tempVal1)+","+str(tempVal2)+","+str(gyroValue)+","+str(gyroVelValue)+","+str(timeValue)+","+str(latValue)+","+str(lonValue)+","+str(gpsTime)+","+str(altValue)+","+str(epsValue)+","+str(epxValue)+","+str(epvValue)+","+str(eptValue)+","+str(spdValue)+","+str(clbValue)+","+str(trkValue)+","+str(mdeValue)
+        dataString=str(tempVal1)+","+str(tempVal2)+","+str(gyroValue)+","+str(gyroVelValue)+","+str(timeValue)+","+str(latValue)+","+str(lonValue)+","+str(gpsTime)+","+str(altValue)+","+str(epsValue)+","+str(epxValue)+","+str(epvValue)+","+str(eptValue)+","+str(spdValue)+","+str(clbValue)+","+str(trkValue)+","+str(mdeValue)+"\n"
 
         #write to the csv file
         mission.csvWriteRow(dataString)
-
+        
         #Timer for making the thread sleep
-        time.sleep(5)
+        time.sleep(30)
     
     except IOError as thisException:
         print str(thisException)
